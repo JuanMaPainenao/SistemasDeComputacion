@@ -12,7 +12,7 @@ _Baccino, Luca; Painenao, Juan Manuel; Alejandro R. Stangaferro;_
 _Javier A. Jorge; Miguel A. Solinas;_
 **2026**
 
-## 📌 Descripción del Proyecto
+## Descripción del Proyecto
 
 El sistema está diseñado en tres capas distintas que interactúan entre sí utilizando las convenciones de llamadas de Linux x86-64:
 
@@ -22,7 +22,7 @@ El sistema está diseñado en tres capas distintas que interactúan entre sí ut
 
 ---
 
-## ⚙️ Requisitos Previos
+## Requisitos Previos
 
 Para compilar y ejecutar este proyecto, es necesario contar con un entorno Linux (o WSL) con las siguientes herramientas instaladas:
 
@@ -32,7 +32,7 @@ Para compilar y ejecutar este proyecto, es necesario contar con un entorno Linux
 
 ---
 
-## 🚀 Compilación y Ejecución
+## Compilación y Ejecución
 
 Para compilar el proyecto uniendo el código C y Ensamblador, y generando información de depuración, ejecutar en la terminal:
 
