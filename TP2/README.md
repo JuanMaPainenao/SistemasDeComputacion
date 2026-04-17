@@ -32,9 +32,15 @@ Para compilar y ejecutar este proyecto, es necesario contar con las siguientes h
 
 ---
 
-## Compilación y Ejecución
+## Compilación y Ejecución Paso a Paso
 
-Para compilar el proyecto uniendo el código C y Ensamblador, y generando información de depuración, ejecutar en la terminal:
+El desarrollo y prueba de este sistema se dividió en iteraciones para validar cada capa arquitectónica. A continuación, se detalla cómo ejecutar cada parte:
 
-```bash
-gcc -g -o programa_gini main.c gini_asm.s
+### Iteración 1: Validación de la Capa Superior (API REST)
+Antes de compilar el sistema completo, se puede verificar que la conexión con el Banco Mundial esté operativa ejecutando el script de Python de forma aislada.
+
+1. Ejecutar en la terminal:
+   ```bash
+   python3 api_gini.py
+Resultado
+   ![Resultado de ejecutar la iteración 1](img/python_manual.png)
