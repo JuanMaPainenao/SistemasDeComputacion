@@ -1,4 +1,10 @@
 import requests
+import ctypes
+import os
+
+lib = ctypes.CDLL('./libgini.so') #Se carga la shared library
+lib.convertir_gini.argtypes = [ctypes.c_double]
+lib.convertir_gini.restype  = ctypes.c_int
 
 params = {
     'format': 'json',
@@ -20,17 +26,17 @@ def obtener_gini_argentina():
                 return float(registro['value'])
         return None
 
-    except requests.exceptions.Timeout:
-        print("Timeout")
-        return None
-    except requests.exceptions.HTTPError as e:
-        print(f"Error HTTP: {e}")
-        return None
-    except requests.exceptions.RequestException as e:
-        print(f"Error de red: {e}")
+    except requests.exceptions.RequestException:
         return None
 
-valor = obtener_gini_argentina()
-print(f"Índice GINI Argentina: {valor}")
+#valor = obtener_gini_argentina()
+#print(f"Índice GINI Argentina: {valor}")
 #print(res)
 #print(res.text)
+
+if valor is not None:
+    print(f"Valor GINI float: {valor}")
+    resultado = lib.convertir_gini(valor)  # ctypes pasa el double por la ABI
+    print(f"GINI convertido a entero: {resultado}")
+else:
+    print("No se pudo obtener el dato GINI")
