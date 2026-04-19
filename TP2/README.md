@@ -84,3 +84,10 @@ x/4xg $rsp
 Salida de la terminal:
 
 ![Resultado de ejecutar la iteración 1](img/iteracion2_2.png)
+
+**Análisis de la memoria capturada:**
+Al inspeccionar los bloques de 8 bytes a partir de la nueva cima de la pila (`%rsp`), se observa la estructura exacta del Stack Frame:
+
+* **Primera dirección (`0x7fffffffd920`)**: Contiene el viejo `%rbp` (el "ancla" de `main`), guardado por la instrucción `pushq %rbp`.
+* **Segunda dirección (a 8 bytes, implícita al lado de la primera)**: Contiene la dirección de retorno a la función `main` (`0x...52ed`).
+* **Tercera dirección (`0x7fffffffd930`)**: A exactamente 16 bytes del RBP actual, se encuentra el valor `0x2a` (42 en decimal). Esto confirma que, al saturar los 6 registros de propósito general, el 7mo argumento viajó correctamente por la memoria hacia la subrutina.
