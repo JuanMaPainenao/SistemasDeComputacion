@@ -49,14 +49,11 @@ Cada carpeta contiene el detalle de compilación específico de su etapa, pero a
 
 El desarrollo de este trabajo práctico permitió consolidar de forma empírica los conceptos teóricos sobre la arquitectura x86-64 y la interacción directa entre lenguajes de distinto nivel de abstracción. A partir del desarrollo, destacamos los siguientes logros:
 
-* Se logró integrar correctamente Python y C mediante librerías dinámicas (`.so`).
+* Se logró integrar correctamente Python, C y ASM.
 * Se comprendió y aplicó la convención de llamadas (System V AMD64) para el paso de datos de punto flotante.
 * Se analizó el comportamiento del Stack Frame, los registros y el paso de parámetros en ejecución real usando GDB.
-* Se validó el correcto truncamiento y conversión de tipos de datos a nivel de procesador.
-
-### Punto clave
 
 El verdadero valor de este trabajo no reside en la complejidad de la operación matemática, sino en la demostración práctica de:
+* la comprensión del flujo de ejecución.
 * la integración de lenguajes de distinto nivel de abstracción.
 * el análisis y manipulación de la memoria a bajo nivel.
-* la comprensión absoluta del flujo de ejecución.
