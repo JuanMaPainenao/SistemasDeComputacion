@@ -69,21 +69,6 @@ Salida de la terminal:
 ![Resultado de ejecutar la iteración 1](img/iteracion2.png)
 
 ### 2: Depuración y Comprobación del Stack Frame (GDB)
-Para demostrar empíricamente el paso del séptimo argumento a través de la pila (cumpliendo con la convención de llamadas x86-64 en Linux), se inspeccionó el binario compilado con la herramienta GDB.
-
-Comandos ejecutados en el depurador para aislar la función y observar la memoria:
-```bash
-gdb ./programa_gini
-break calcular_gini_asm
-run
-stepi
-stepi
-x/4xg $rsp
-```
-
-Salida de la terminal:
-
-![Resultado de ejecutar la iteración 1](img/iteracion2_2.png)
 
 **Análisis de la memoria capturada:**
 Al inspeccionar los bloques de 8 bytes a partir de la nueva cima de la pila (`%rsp`), se observa la estructura exacta del Stack Frame:
