@@ -111,9 +111,7 @@ El programa ejecutable ocupa los primeros 15 bytes de la imagen (posiciones 0x00
 
 Le dice al linker que genere un archivo binario plano (raw binary), sin ningún header ni metadata, solo los bytes del código y datos tal cual deben aparecer en memoria.
 
-
-### Modo protegido
-# Desafío final: Modo protegido
+## Desafío final: Modo protegido
 
 En esta sección se construye, desde cero y sin macros, un bootloader que pasa de modo real a modo protegido, se generan dos variantes del programa para responder las consignas del desafío y se verifica con `gdb` el comportamiento del procesador cuando se intenta escribir sobre un segmento de solo lectura.
 
@@ -144,7 +142,7 @@ make debug-readonly   # arranca QEMU detenido y esperando gdb en :1234
 ```
 
 
-## 1. Crear un código assembler que pueda pasar a modo protegido (sin macros)
+### 1. Crear un código assembler que pueda pasar a modo protegido (sin macros)
 
 El archivo `boot_pm.s` es un MBR de 512 bytes (firma `0xAA55`) cargado por la BIOS en `0x7C00`. El procedimiento que sigue para pasar a modo protegido es el siguiente:
 
@@ -207,7 +205,7 @@ qemu-system-x86_64 -drive file=boot_pm.bin,format=raw,index=0,media=disk
 
 En pantalla aparece `MODO PROTEGIDO OK - Hola desde 32 bits` impreso directamente sobre el framebuffer VGA, lo que confirma que el procesador está ejecutando código de 32 bits con la GDT activa.
 
-## 2. Programa con dos descriptores en espacios de memoria diferenciados
+### 2. Programa con dos descriptores en espacios de memoria diferenciados
 
 `boot_segmentos.s` extiende el caso anterior eligiendo **bases distintas** para el descriptor de código y el de datos:
 
@@ -260,7 +258,7 @@ Si se escribe `mov $0, %esi` desde código que pensara estar en CS:0, leería el
 
 El GIF muestra que boot_pm.bin y boot_segmentos.bin se diferencian en un único byte: el quinto byte del descriptor de datos, que codifica base[16:23]. En boot_pm.bin ese byte es 0x00 (segmento de datos con base 0x00000000); en boot_segmentos.bin es 0x01 (segmento de datos con base 0x00010000). Esa diferencia es lo que vuelve "diferenciados" los espacios de memoria de código y datos: aunque ambos selectores apuntan a la misma RAM física, el offset 0 visto desde DS es la dirección física 0x10000, mientras que el offset 0 visto desde CS sigue siendo 0x00000000. El mensaje se copia con rep movsb a 0x10000 en modo real, y en modo protegido se lee con mov (%esi), %al desde DS:0.
 
-## 3. Segmento de datos de solo lectura — qué pasa al escribir
+### 3. Segmento de datos de solo lectura — qué pasa al escribir
 
 `boot_readonly.s` es idéntico a `boot_pm.s` salvo por **un único bit** en el descriptor de datos:
 
@@ -272,7 +270,7 @@ El GIF muestra que boot_pm.bin y boot_segmentos.bin se diferencian en un único 
 
 El bit relevante es el bit 1 del byte de access (`W` para descriptores de datos). En `0x92` está en 1 (escribible), en `0x90` está en 0 (solo lectura).
 
-### ¿Qué sucede al intentar escribir?
+#### ¿Qué sucede al intentar escribir?
 
 El programa, después de pasar a modo protegido, primero escribe `RO` en la VGA usando un `EDI = 0xB8000` (eso funciona porque `DS` cubre toda la memoria), y a continuación intenta escribir un byte con:
 
@@ -282,7 +280,7 @@ movb    $0xFF, (%edi)
 
 Sobre el segmento `DS` cuyo descriptor está marcado como _read-only_. Esa escritura genera una **#GP — General Protection Fault (vector 13)**: la unidad de protección del procesador detecta que el descriptor no permite escritura y aborta la instrucción antes de modificar memoria.
 
-### ¿Qué debería suceder a continuación?
+#### ¿Qué debería suceder a continuación?
 
 Lo que el procesador hace ante una `#GP` está descripto en el manual de Intel (vol. 3, _Interrupt and Exception Handling_). El flujo "normal" es:
 
@@ -298,7 +296,7 @@ En nuestro caso **nunca cargamos una IDT**, así que el procesador no encuentra 
 
 En QEMU el efecto visible es que la VM se reinicia (o se cierra, si se la corre con `-no-reboot`).
 
-### Verificación con `gdb`
+#### Verificación con `gdb`
 
 Para verlo en vivo se compila y se arranca QEMU detenido con el stub de gdb activado:
 
@@ -394,7 +392,7 @@ Cambiar un único bit del descriptor de datos (el bit `RW`, pasando el
 access byte de `0x92` a `0x90`) fue suficiente para activar todo el
 mecanismo de protección y llevar al procesador hasta el reset.
 
-## 4. ¿Con qué valor se cargan los registros de segmento en modo protegido? ¿Por qué?
+### 4. ¿Con qué valor se cargan los registros de segmento en modo protegido? ¿Por qué?
 
 Se cargan con un **selector** de 16 bits, no con una dirección base. El formato del selector es:
 
