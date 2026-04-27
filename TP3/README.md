@@ -259,6 +259,8 @@ Si se escribe `mov $0, %esi` desde código que pensara estar en CS:0, leería el
 
 ![Comparación de GDTs](img/1_2.gif)
 
+El GIF muestra que boot_pm.bin y boot_segmentos.bin se diferencian en un único byte: el quinto byte del descriptor de datos, que codifica base[16:23]. En boot_pm.bin ese byte es 0x00 (segmento de datos con base 0x00000000); en boot_segmentos.bin es 0x01 (segmento de datos con base 0x00010000). Esa diferencia es lo que vuelve "diferenciados" los espacios de memoria de código y datos: aunque ambos selectores apuntan a la misma RAM física, el offset 0 visto desde DS es la dirección física 0x10000, mientras que el offset 0 visto desde CS sigue siendo 0x00000000. El mensaje se copia con rep movsb a 0x10000 en modo real, y en modo protegido se lee con mov (%esi), %al desde DS:0.
+
 ## 3. Segmento de datos de solo lectura — qué pasa al escribir
 
 `boot_readonly.s` es idéntico a `boot_pm.s` salvo por **un único bit** en el descriptor de datos:
