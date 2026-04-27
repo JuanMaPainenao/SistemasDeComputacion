@@ -114,6 +114,76 @@ Le dice al linker que genere un archivo binario plano (raw binary), sin ningún 
 
 ### Modo protegido
 
+#### Transición a Modo Protegido (Sin macros)
+Para pasar de Modo Real (16 bits) a Modo Protegido (32 bits), es necesario deshabilitar las interrupciones, cargar una Tabla Global de Descriptores (GDT) en memoria, cambiar el bit 0 del registro de control `CR0` y hacer un salto largo (*far jump*) para limpiar el pipeline del procesador.
+
+A continuación, se presenta el código Assembler resolviendo las consignas propuestas (espacios de memoria diferenciados y segmento de datos de solo lectura):
+
+```assembly
+.code16
+.global _start
+
+_start:
+    cli                     # 1. Deshabilitar interrupciones
+    lgdt gdtr               # 2. Cargar el registro GDT con el puntero a nuestra tabla
+
+    # 3. Habilitar el modo protegido (Setear bit 0 de CR0)
+    mov %cr0, %eax
+    or $1, %eax
+    mov %eax, %cr0
+
+    # 4. Far jump para limpiar el pipeline y cargar el nuevo CS
+    # 0x08 es el Selector de Segmento para el Código
+    jmp $0x08, $modo_protegido
+
+.code32
+modo_protegido:
+    # 5. Inicializar registros de segmento de datos
+    # 0x10 es el Selector de Segmento para los Datos
+    mov $0x10, %ax
+    mov %ax, %ds
+    mov %ax, %es
+    mov %ax, %fs
+    mov %ax, %gs
+    mov %ax, %ss
+
+    # INTENTO DE ESCRITURA (Provocará un fallo por ser Read-Only)
+    movl $0xDEADBEEF, (0x1000) 
+
+    # Bucle infinito (Si el sistema no fallara)
+    hlt
+    jmp modo_protegido
+
+# --- GDT (Global Descriptor Table) ---
+.align 4
+gdt_start:
+null_descriptor:
+    .quad 0                 # El primer descriptor (offset 0x00) siempre es nulo
+
+code_descriptor:            # Offset 0x08
+    # Descriptor de Código: Base 0x00000000
+    .word 0xffff            # Límite (bits 0-15)
+    .word 0x0000            # Base (bits 0-15)
+    .byte 0x00              # Base (bits 16-23)
+    .byte 0b10011010        # Access Byte: Presente(1), Priv(00), Desc(1), Exec(1), Conf(0), Readable(1), Acc(0)
+    .byte 0b11001111        # Flags y Límite (bits 16-19)
+    .byte 0x00              # Base (bits 24-31)
+
+data_descriptor:            # Offset 0x10
+    # Descriptor de Datos: Base 0x00001000 (Espacio de memoria diferenciado)
+    # SOLO LECTURA (Read-Only): El bit 'Writable' en el Access Byte está en 0.
+    .word 0xffff            # Límite (bits 0-15)
+    .word 0x1000            # Base (bits 0-15) -> Base diferente al código
+    .byte 0x00              # Base (bits 16-23)
+    .byte 0b10010000        # Access Byte: Type 0000 (Data, Expand-Up, READ-ONLY)
+    .byte 0b11001111        # Flags y Límite (bits 16-19)
+    .byte 0x00              # Base (bits 24-31)
+gdt_end:
+
+gdtr:
+    .word gdt_end - gdt_start - 1 # Tamaño de la GDT
+    .long gdt_start               # Dirección base de la GDT
+
 
 
 ### Bibliografia
