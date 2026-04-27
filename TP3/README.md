@@ -414,7 +414,7 @@ En los programas de este desafío los selectores son:
 | `CS`     | `0x08`  | índice 1 (segmento de código), TI=0 (GDT), RPL=0         |
 | `DS/ES/SS/FS/GS` | `0x10` | índice 2 (segmento de datos), TI=0 (GDT), RPL=0   |
 
-**¿Por qué un selector y no una base?** Porque la lógica de protección del 80386 hacia adelante separó *qué* segmento se usa (selector, visible al programador) de *cómo* es ese segmento (descriptor, almacenado en la GDT/LDT, controlado por el sistema operativo). El descriptor contiene la base, el límite, el nivel de privilegio, el tipo (código/datos), si es leíble/escribible/ejecutable, etc. Cuando el procesador carga un selector en un registro de segmento, internamente lee el descriptor referenciado y guarda toda esa información en una **shadow register** invisible para el programador. Las accesos siguientes usan esa caché, sin volver a consultar la tabla.
+**¿Por qué un selector y no una base?** Porque la lógica de protección del 80386 hacia adelante separó *qué* segmento se usa (selector, visible al programador) de *cómo* es ese segmento (descriptor, almacenado en la GDT/LDT, controlado por el sistema operativo). El descriptor contiene la base, el límite, el nivel de privilegio, el tipo (código/datos), si es leíble/escribible/ejecutable, etc. Cuando el procesador carga un selector en un registro de segmento, internamente lee el descriptor referenciado y guarda toda esa información en un registro caché invisible del propio registro de segmento (la parte que no puede manipular el programador, donde quedan almacenados base, límite y atributos del descriptor leído). Las accesos siguientes usan esa caché, sin volver a consultar la tabla.
 
 Esta indirección permite tres cosas que el modo real no podía dar:
 
