@@ -114,77 +114,93 @@ Le dice al linker que genere un archivo binario plano (raw binary), sin ningún 
 
 ### Modo protegido
 
-#### Transición a Modo Protegido (Sin macros)
-Para pasar de Modo Real (16 bits) a Modo Protegido (32 bits), es necesario deshabilitar las interrupciones, cargar una Tabla Global de Descriptores (GDT) en memoria, cambiar el bit 0 del registro de control `CR0` y hacer un salto largo (*far jump*) para limpiar el pipeline del procesador.
+Para pasar de Modo Real (16 bits) a Modo Protegido (32 bits), es necesario deshabilitar las interrupciones, cargar una Tabla Global de Descriptores (GDT) en memoria para configurar la MMU del hardware, cambiar el bit 0 del registro de control `CR0` y limpiar el pipeline del procesador mediante un salto largo (*far jump*).
 
-A continuación, se presenta el código Assembler resolviendo las consignas propuestas (espacios de memoria diferenciados y segmento de datos de solo lectura):
+#### 1. Código Assembler: GDT con dos descriptores y Segmento Read-Only
+
+A continuación se detalla cómo configurar la GDT para tener un segmento de código y un segmento de datos diferenciado y de solo lectura.
 
 ```assembly
 .code16
 .global _start
 
 _start:
-    cli                     # 1. Deshabilitar interrupciones
-    lgdt gdtr               # 2. Cargar el registro GDT con el puntero a nuestra tabla
+    cli                     # Deshabilitar interrupciones por hardware
+    lgdt gdtr               # Cargar el puntero de nuestra GDT en el procesador
 
-    # 3. Habilitar el modo protegido (Setear bit 0 de CR0)
+    # Encender el Modo Protegido (Setear el bit 0 del registro CR0)
     mov %cr0, %eax
     or $1, %eax
     mov %eax, %cr0
 
-    # 4. Far jump para limpiar el pipeline y cargar el nuevo CS
-    # 0x08 es el Selector de Segmento para el Código
+    # Salto largo (Far Jump) para limpiar el pipeline y aplicar el nuevo CS
+    # 0x08 es el índice que apunta al Descriptor de Código en la GDT
     jmp $0x08, $modo_protegido
 
 .code32
 modo_protegido:
-    # 5. Inicializar registros de segmento de datos
-    # 0x10 es el Selector de Segmento para los Datos
+    # 0x10 es el índice que apunta al Descriptor de Datos en la GDT
     mov $0x10, %ax
     mov %ax, %ds
-    mov %ax, %es
-    mov %ax, %fs
-    mov %ax, %gs
-    mov %ax, %ss
-
-    # INTENTO DE ESCRITURA (Provocará un fallo por ser Read-Only)
+    
+    # INTENTO DE ESCRITURA EN SEGMENTO READ-ONLY
+    # Esto provocará un fallo de hardware.
     movl $0xDEADBEEF, (0x1000) 
 
-    # Bucle infinito (Si el sistema no fallara)
     hlt
-    jmp modo_protegido
 
-# --- GDT (Global Descriptor Table) ---
+# --- TABLA GDT ---
 .align 4
 gdt_start:
 null_descriptor:
-    .quad 0                 # El primer descriptor (offset 0x00) siempre es nulo
+    .quad 0                 # El offset 0x00 siempre debe ser nulo por arquitectura
 
 code_descriptor:            # Offset 0x08
-    # Descriptor de Código: Base 0x00000000
     .word 0xffff            # Límite (bits 0-15)
-    .word 0x0000            # Base (bits 0-15)
-    .byte 0x00              # Base (bits 16-23)
-    .byte 0b10011010        # Access Byte: Presente(1), Priv(00), Desc(1), Exec(1), Conf(0), Readable(1), Acc(0)
-    .byte 0b11001111        # Flags y Límite (bits 16-19)
-    .byte 0x00              # Base (bits 24-31)
+    .word 0x0000            # Base física (arranca en 0x0)
+    .byte 0x00              
+    .byte 0b10011010        # Access Byte: Presente, Ejecutable, Lectura permitida.
+    .byte 0b11001111        
+    .byte 0x00              
 
 data_descriptor:            # Offset 0x10
-    # Descriptor de Datos: Base 0x00001000 (Espacio de memoria diferenciado)
-    # SOLO LECTURA (Read-Only): El bit 'Writable' en el Access Byte está en 0.
-    .word 0xffff            # Límite (bits 0-15)
-    .word 0x1000            # Base (bits 0-15) -> Base diferente al código
-    .byte 0x00              # Base (bits 16-23)
-    .byte 0b10010000        # Access Byte: Type 0000 (Data, Expand-Up, READ-ONLY)
-    .byte 0b11001111        # Flags y Límite (bits 16-19)
-    .byte 0x00              # Base (bits 24-31)
+    .word 0xffff            # Límite
+    .word 0x1000            # Base física DIFERENTE (arranca en 0x1000)
+    .byte 0x00              
+    .byte 0b10010000        # Access Byte: READ-ONLY (El bit de Writable está en 0)
+    .byte 0b11001111        
+    .byte 0x00              
 gdt_end:
 
 gdtr:
-    .word gdt_end - gdt_start - 1 # Tamaño de la GDT
-    .long gdt_start               # Dirección base de la GDT
+    .word gdt_end - gdt_start - 1 # Tamaño de la tabla
+    .long gdt_start               # Puntero a la tabla
 ```
 
+#### 2. ¿Cómo sería un programa que tenga dos descriptores de memoria diferentes?
+Para que los descriptores apunten a bloques de memoria lógicamente separados, se debe modificar la dirección **Base física** dentro de la estructura de la GDT. En el código proporcionado, el `code_descriptor` inicia su bloque en la dirección física `0x0000`, mientras que el `data_descriptor` establece su base desplazada en la dirección `0x1000`. De esta manera, el hardware (a través de la MMU) aísla completamente la memoria de programa de la memoria de datos.
+
+#### 3. Intento de escritura en un segmento de Solo Lectura (Read-Only)
+Para crear un segmento de solo lectura, se configuró el *Access Byte* del descriptor de datos en la GDT, forzando el bit *Writable* (modificable) a `0`. 
+
+**¿Qué sucede al ejecutar `movl $0xDEADBEEF, (0x1000)`?**
+La MMU (Memory Management Unit) intercepta la instrucción antes de que las señales eléctricas lleguen a la memoria RAM. Al leer la configuración de la GDT, el procesador detecta que el segmento carece de permisos de escritura y dispara una interrupción por hardware conocida como **General Protection Fault (Excepción #13)**. 
+
+Al no haber configurado previamente un vector de interrupciones (IDT) para atajar y manejar esta excepción, la CPU sufre un *Double Fault*, seguido inmediatamente de un *Triple Fault*. A nivel arquitectónico, un *Triple Fault* activa el pin de reset del procesador, provocando que la máquina (o el emulador QEMU) aborte la ejecución y entre en un bucle infinito de reinicios.
+
+#### 4. En modo protegido, ¿Con qué valor se cargan los registros de segmento? ¿Por qué?
+A diferencia del Modo Real donde los registros de segmento guardaban direcciones físicas de memoria directas (ej. `0x07C0`), en Modo Protegido registros como `%cs`, `%ds` o `%es` se cargan con **Selectores de Segmento**.
+
+Un selector es un valor de 16 bits que funciona como un **índice** apuntando a una fila específica de la GDT. Por ejemplo, al cargar el registro de datos `%ds` con el valor `0x10`, no se le está indicando a la CPU una dirección RAM, sino que se le instruye que aplique las reglas de seguridad, límites y offset físico definidas en el tercer descriptor de la tabla GDT.
+
+### Conclusión
+
+Este trabajo práctico permitió comprender la evolución y el funcionamiento del proceso de arranque de una computadora desde su nivel más bajo. A través de la investigación y la experimentación práctica, logramos:
+* Entender la transición histórica y técnica desde el antiguo BIOS/MBR hacia las implementaciones modernas con UEFI y Coreboot.
+* Identificar el rol crítico del linker en la asignación de direcciones de memoria físicas (como el clásico `0x7C00`).
+* Desmitificar el paso de Modo Real a Modo Protegido, comprobando cómo el procesador delega la seguridad y la segmentación de la memoria al hardware (MMU) a través de la configuración de la GDT y los selectores de segmento.
+
+En resumen, el trabajo demuestra cómo las abstracciones de software se apoyan fundamentalmente en la configuración estricta de los transistores y registros del microprocesador.
 
 ### Bibliografia
 - https://www.lenovo.com/ar/es/glosario/uefi/?orgRef=https%253A%252F%252Fwww.google.com%252F&srsltid=AfmBOoqRwmyjiC2P8mG_-BWqRwpSsGSIz4byrFluFUqVfA7tWc6FsPN8
