@@ -332,8 +332,68 @@ check_exception old: 0xd new 0x8            <- #DF, vector 8
 CPU Reset (CPU 0)                            <- triple fault
 ```
 
-Esa traza confirma exactamente la cadena `#GP → #DF → triple fault → reset` que predice la teoría.
+![Triple fault al escribir sobre segmento read-only](img/1_3.gif)
 
+En el GIF se ven simultáneamente las tres ventanas:
+
+- **Terminal de la izquierda — gdb**: se conecta a QEMU con
+  `target remote :1234`, pone un breakpoint en `0x7c00` (primer byte del
+  bootloader) y avanza con `si` instrucción por instrucción. Pasa por la
+  habilitación de A20, la carga de la GDT, la activación del bit PE de CR0
+  y el `ljmp` que entra a 32 bits. Una vez en modo protegido, el `EIP` llega
+  a `0x7c27`, donde está la instrucción `mov %eax, %ss`.
+
+- **Terminal de la derecha — log de QEMU** (con `-d int,cpu_reset`): muestra el
+  dump de la CPU justo después del fallo. En la línea de los selectores se
+  ven los atributos de cada segmento:
+  
+```
+CS =0008 ... DPL=0 CS32 [-R-]
+DS =0010 ... DPL=0 DS   [--A]   <-- sin W: read-only
+SS =0000 ... DPL=0 DS16 [-WA]
+```
+
+  El descriptor de datos quedó marcado como solo lectura (access byte
+  `0x90`), y eso se ve reflejado en los flags `[--A]` (sin `W`).
+
+- **Ventana de QEMU [Paused]**: la VM queda congelada porque corremos
+  con `-no-reboot -no-shutdown`. Sin esa opción, el procesador se
+  reiniciaría solo y volveríamos a ver SeaBIOS arrancando.
+
+#### Por qué el fault ocurre en `mov %eax, %ss`
+
+El intento de escritura explícita que está más adelante en el código
+(`movb $0xFF, (%edi)`) **nunca llega a ejecutarse**: el procesador detecta
+una violación de protección antes, en la propia carga de SS. La regla del
+modo protegido dice que **SS solo puede cargarse con un selector que apunte
+a un segmento de datos escribible**. Como el descriptor 0x10 tiene `RW=0`,
+apenas se ejecuta `mov %eax, %ss` la CPU dispara `#GP`. Es la primera
+instrucción que toca el segmento de datos read-only para escribir, y la
+unidad de protección la corta en seco.
+
+#### Cadena `#GP → #DF → triple fault`
+
+El log de QEMU muestra la secuencia exacta `#GP → #DF → triple fault`:
+```
+check_exception old: 0xffffffff new 0xd     <- #GP (vector 13)
+check_exception old: 0xd       new 0xd     <- otra #GP al buscar handler
+check_exception old: 0x8       new 0xd     <- al pasar a #DF, otra #GP
+Triple fault
+```
+
+1. Se levanta `#GP` (vector `0xd`) por la carga ilegal de SS.
+2. Como nunca cargamos una IDT, el procesador no encuentra el descriptor
+   del handler de `#GP` y vuelve a generar `#GP` al intentar leerlo.
+3. Eso escala a `#DF` (vector `0x8`, _Double Fault_), pero el handler de
+   `#DF` tampoco existe → `#GP` otra vez.
+4. La tercera excepción seguida es lo que se define como **triple
+   fault**, y la única reacción posible del procesador es resetearse.
+   Con `-no-reboot` QEMU detiene la VM en lugar de reiniciar, y por eso
+   el título de la ventana dice `[Paused]`.
+
+Cambiar un único bit del descriptor de datos (el bit `RW`, pasando el
+access byte de `0x92` a `0x90`) fue suficiente para activar todo el
+mecanismo de protección y llevar al procesador hasta el reset.
 
 ## 4. ¿Con qué valor se cargan los registros de segmento en modo protegido? ¿Por qué?
 
