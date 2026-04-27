@@ -48,18 +48,74 @@ Ejemplos de funciones:
 
 ### ¿Qué es Converged Security and Management Engine (CSME), the Intel Management Engine BIOS Extension (Intel MEBx).?
 
+CSME
+
+CSME surge en 2017/2028 como renombre de loq ue era ME (Intel Management Engine) un subsistemadesarrollado en 2006. El CSME es un microcontrolador independiente que se encuentra en el chipset y cuenta con microprocesador propio, tiene su propia ram y corre su propio sistema operativo. Funciona completamente independiente de la CPU principal, funciona siempre que la placa madre tenga tension, incluso cuando el SO esta apagado o la maquina en estado de suspension.
+Las principales funciones de CSME son:
+- Seguridad del firmware: es el primer codigo que se ejecuta cuando se energiza la placa madre, verifica la integridad criptografica de la UEFI
+- Gestion remota: permite encender, apagar, reiniciar, acceder a la consola, redirigir el teclado y el video, o reinstalar el SO de forma remota.
+- Boot guard: permite "quemar" en fusibles permanentes un hash del firmware legitimo, de modo que si alguien modifica la BIOS, el sistema no arranca.
+
+Intel MEBx
+
+Es la interfaz de configuracion del CSME durante el arranque del sistema, de manera similar  a como la UEFI/BIOS permite configurar parametros del hardware.
+Desde el MEBx se puede:
+- Habilitar o deshabilitar AMT
+- COnfigurar credenciales de acceso remoto
+- Configurar la interfaz de red que se usara para la gestion
+- Establecer politicas de acceso
+- Activar KVM (Keyboard Video Mouse) remoto por hardware
 
 ### ¿Qué es coreboot ? ¿Qué productos lo incorporan ?¿Cuales son las ventajas de su utilización?
 
+Coreboot se diferencia de la BIOS/UEFI, ya que en lugar de ser un firmware monolitico que implementa toda una interfaz de compatibilidad con hardware antiguo, coreboot hace lo minimo indispensable en hardware y delega todo lo demas a un payload separado.
+Los productos que lo incorporan son:
+- Google chromebooks
+- System 76: fabricante de laptops y workstations linux
+- Purims: fabricante de laptops orientadas a privacidad
+- Qemu: firmware de maquinas virtuales
+
+Las ventajas de Coreboot son:
+- Velcidad de arranque: Al no cargar decadas de compatibilidad legacy, coreboot puede inicializar el hardware y entregar control al SO en tiempos dramaticamente menores.
+- Transparencia y auditabilidad: Es codigo abierto, cualquiera puede aauditar exactamente que hace el firmware.
+- Menor superficie de ataque: Al tener lo minimo la superficie de ataque es menor
+- Modularidad: La arquitectura payload permite adaptar el firmware
+- Independencia del vendedor: Al no depender del codigo del propietario, se puede actualizar el firmaware de equipos que el fabricante ya no soporta.  
 
 
+### Linker
+
+### ¿Que es un linker? ¿que hace ? 
+
+El linker es una herramienta que toma uno o mas archivos .o y los combina en un unico archivo. Resuelve referencias, cuando el codigo tiene una etiqueta como msg que aputana  un string , el ensamblador no sabe en que direccion de memoria va a quedar ese string. El linker asigna las direcciones definitivas a cada simbolo y parchea todas las intrucciones que los referencian con la direccion correcta.
+
+### ¿Que es la dirección que aparece en el script del linker?¿Porqué es necesaria ?
+
+La línea . = 0x7c00 establece el el contador de posición del linker en la dirección 0x7C00. Esto le dice al linker que el programa va a estar ubicado en esa dirección de memoria cuando se ejecute. Es necesaria porque la BIOS, al encontrar un MBR válido, siempre lo carga en la dirección 0x7C00 y salta ahí. Si el linker no supiera esto, calcularía las direcciones de las etiquetas (como msg) asumiendo que el programa empieza en 0, y todas las referencias a datos serían incorrectas cuando el código se ejecute realmente en 0x7C00.
+
+### Compare la salida de objdump con hd, verifique donde fue colocado el programa dentro de la imagen. 
+
+Salida con hd:
+![alt text](img/4.gif)
+
+Salida con objdump:
+![alt text](img/5.gif)
+
+El programa ejecutable ocupa los primeros 15 bytes de la imagen (posiciones 0x00 a 0x0E). Son las instrucciones mov, lods, or, je, int, jmp y hlt que conforman el loop de impresión. En hd se ven como bytes hexadecimales (be 0f 7c b4 0e ac 08 c0 74 04 cd 10 eb f7 f4), y en objdump se ven como instrucciones desensambladas.
+
+### Grabar la imagen en un pendrive y probarla en una pc y subir una foto 
+
+![alt text](img/6.gif)
+
+### ¿Para que se utiliza la opción --oformat binary en el linker?
+
+Le dice al linker que genere un archivo binario plano (raw binary), sin ningún header ni metadata, solo los bytes del código y datos tal cual deben aparecer en memoria.
 
 
-
+### Modo protegido
 
 
 
 ### Bibliografia
 - https://www.lenovo.com/ar/es/glosario/uefi/?orgRef=https%253A%252F%252Fwww.google.com%252F&srsltid=AfmBOoqRwmyjiC2P8mG_-BWqRwpSsGSIz4byrFluFUqVfA7tWc6FsPN8
 - https://unaaldia.hispasec.com/2023/12/vulnerabilidades-criticas-en-uefi-logofail-expone-a-dispositivos-x86-y-arm.html
-- 
